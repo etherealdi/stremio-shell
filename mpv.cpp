@@ -200,7 +200,41 @@ void MpvObject::command(const QVariant& params)
 
 void MpvObject::setProperty(const QString& name, const QVariant& value)
 {
-    mpv::qt::set_property(mpv, name, value);
+    QVariant v = value;
+
+    // Normalize subtitle scale/font-size values coming from QML/JS.
+    // The web UI stores/uses percentages (e.g. "72%" or 72) while mpv expects a
+    // scale as floating point (e.g. 0.72) for the "sub-scale" property. If the
+    // UI mistakenly restores a raw percentage number after restart (e.g. 72),
+    // this would make the subtitles huge. Detect common subtitle-related
+    // properties and normalize percent-style values to the 0..1 range.
+    if (name == "sub-scale" || name == "sub-font-size" || name == "sub-font" || name.startsWith("sub-")) {
+        // If string ends with '%', strip and convert
+        if (v.type() == QVariant::String) {
+            QString s = v.toString().trimmed();
+            if (s.endsWith('%')) {
+                bool ok = false;
+                double pct = s.left(s.size()-1).toDouble(&ok);
+                if (ok) v = pct / 100.0;
+            } else {
+                // try parse numeric string
+                bool ok = false;
+                double d = s.toDouble(&ok);
+                if (ok && d > 10.0) // treat as percent like 72 -> 0.72
+                    v = d / 100.0;
+                else if (ok)
+                    v = d;
+            }
+        } else if (v.canConvert<double>()) {
+            double d = v.toDouble();
+            // If the numeric value looks like a percent (greater than 10),
+            // convert to fraction. This is a heuristic to handle saved values
+            // like 72 meaning 72%.
+            if (d > 10.0) v = d / 100.0;
+        }
+    }
+
+    mpv::qt::set_property(mpv, name, v);
 }
 
 void MpvObject::observeProperty(const QString& name)
