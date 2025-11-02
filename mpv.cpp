@@ -198,9 +198,7 @@ void MpvObject::command(const QVariant& params)
     mpv::qt::command(mpv, params);
 }
 
-void MpvObject::setProperty(const QString& name, const QVariant& value)
-{
-    QVariant v = value;
+void MpvObject::setProperty(const QString& name, const QVariant& val    QVariant v = value;
 
     // Normalize subtitle scale/font-size values coming from QML/JS.
     // The web UI stores/uses percentages (e.g. "72%" or 72) while mpv expects a
